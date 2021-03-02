@@ -2,12 +2,12 @@
 // Waits for reply to the request, prints it, and terminates.
 // Client: <oper> <opnd>* : <result> (result by the server or "ERROR")
 
-import java.io.IOException;
-import java.net.*;
+        import java.io.IOException;
+        import java.net.*;
 
-import static java.lang.Integer.parseInt;
+        import static java.lang.Integer.parseInt;
 
-public class Client extends Thread {
+public class Client {
     DatagramSocket socket;
     String host;
     int port;
@@ -21,18 +21,18 @@ public class Client extends Thread {
         this.port = parseInt(args[1]);
         this.oper = args[2];
         this.dnsName = args[3];
-        if (this.oper.equals("REGISTER"));
+        if (this.oper.equals("REGISTER"))
             this.ipAddress = args[4];
 
-        System.out.println("Socket: " + this.socket);
+        /*System.out.println("Socket: " + this.socket);
         System.out.println("Host: " + this.host);
         System.out.println("Port: " + this.port);
         System.out.println("Oper: " + this.oper);
         System.out.println("DNS Name: " + this.dnsName);
-        System.out.println("IP Address: " + this.ipAddress);
+        System.out.println("IP Address: " + this.ipAddress);*/
     }
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws Exception {
         if (args.length != 4 && args.length != 5) {
             System.out.println("Usage: java Client <host> <port> REGISTER <DNS name> <IP address>");
             System.out.println("Usage: java Client <host> <port> LOOKUP <DNS name>");
@@ -66,6 +66,7 @@ public class Client extends Thread {
 
     public void sendRequest(String request) throws IOException {
         DatagramPacket packet = new DatagramPacket(request.getBytes(), request.length(), InetAddress.getByName(this.host), this.port);
+        System.out.println(request);
         this.socket.send(packet);
 
         byte[] buffer = new byte[256];
@@ -74,16 +75,18 @@ public class Client extends Thread {
         while (true) {
             try {
                 this.socket.receive(reply);
+
+                String data = new String(reply.getData(), 0, reply.getLength());
+                if (data != null) {
+                    System.out.println("Client: " + request + " : " + data);
+                    break;
+                }
+
             } catch (Exception e) {
                 e.printStackTrace();
             }
 
-            String data = new String(reply.getData(), 0, reply.getLength());
-            if (data != null) {
-                System.out.println("Client: " + request + " : " + data);
-                break;
-            }
+
         }
-        this.socket.close();
     }
 }
