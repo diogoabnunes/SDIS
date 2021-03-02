@@ -66,7 +66,6 @@ public class Client {
 
     public void sendRequest(String request) throws IOException {
         DatagramPacket packet = new DatagramPacket(request.getBytes(), request.length(), InetAddress.getByName(this.host), this.port);
-        System.out.println(request);
         this.socket.send(packet);
 
         byte[] buffer = new byte[256];
