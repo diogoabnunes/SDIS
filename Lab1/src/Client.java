@@ -14,9 +14,8 @@ public class Client extends Thread {
     String oper;
     String dnsName;
     String ipAddress;
-    boolean error = false;
 
-    public Client(String args[]) throws SocketException {
+    public Client(String args[]) throws Exception {
         this.socket = new DatagramSocket();
         this.host = args[0];
         this.port = parseInt(args[1]);
@@ -34,22 +33,26 @@ public class Client extends Thread {
     }
 
     public static void main(String[] args) throws IOException {
-        if ((args[2].equals("REGISTER") && args.length != 5) ||
+        if (args.length != 4 && args.length != 5) {
+            System.out.println("Usage: java Client <host> <port> REGISTER <DNS name> <IP address>");
+            System.out.println("Usage: java Client <host> <port> LOOKUP <DNS name>");
+            System.exit(1);
+        }
+        else if ((args[2].equals("REGISTER") && args.length != 5) ||
                 (args[2].equals("LOOKUP") && args.length != 4) ||
                 (!args[2].equals("REGISTER") && !args[2].equals("LOOKUP"))) {
-            System.out.println(args[2]);
             System.out.println("Usage: java Client <host> <port> REGISTER <DNS name> <IP address>");
             System.out.println("Usage: java Client <host> <port> LOOKUP <DNS name>");
             System.exit(1);
         }
 
         Client c = new Client(args);
-        String request = "";
-        c.buildRequest(request);
+        String request = c.buildRequest();
         c.sendRequest(request);
     }
 
-    public String buildRequest(String request) {
+    public String buildRequest() {
+        String request = "";
         switch (this.oper) {
             case "REGISTER":
                 request = this.oper + " " + this.dnsName + " " + this.ipAddress;
@@ -66,21 +69,20 @@ public class Client extends Thread {
         this.socket.send(packet);
 
         byte[] buffer = new byte[256];
-        DatagramPacket reply = new DatagramPacket(buffer, 256);
-        String output = null;
+        DatagramPacket reply = new DatagramPacket(buffer, buffer.length);
 
         while (true) {
             try {
                 this.socket.receive(reply);
-
-                output = new String(reply.getData(), 0, reply.getLength());
-                System.out.println("Client: " + request + " : " + output);
-
             } catch (Exception e) {
                 e.printStackTrace();
             }
 
-            if (output != null) break;
+            String data = new String(reply.getData(), 0, reply.getLength());
+            if (data != null) {
+                System.out.println("Client: " + request + " : " + data);
+                break;
+            }
         }
         this.socket.close();
     }

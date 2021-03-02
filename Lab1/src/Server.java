@@ -18,7 +18,7 @@ public class Server extends Thread {
     int port;
     HashMap<String, String> DNSTable;
 
-    public Server(int port) throws SocketException {
+    public Server(int port) throws Exception {
         this.socket = new DatagramSocket(port);
         this.port = port;
         this.DNSTable = new HashMap<>();
@@ -28,48 +28,55 @@ public class Server extends Thread {
 
     public static void main(String[] args) throws IOException {
         if (args.length != 1) {
-            System.out.println("Usage: java Server <port number>");
+            System.out.println("Usage: java Server <port>");
             System.exit(1);
         }
         Server s = new Server(parseInt(args[0]));
-        s.handleRequest();
+        s.start();
     }
 
-    public void handleRequest() {
+    public void start() {
         byte[] buffer = new byte[256];
-        DatagramPacket packet = new DatagramPacket(buffer, 256);
+        DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
         System.out.println("Server ON!");
 
         while (true) {
             try {
                 this.socket.receive(packet);
-                String res = this.processRequest(buffer);
-                InetAddress address = packet.getAddress();
-                int port = packet.getPort();
-                buffer = res.getBytes();
-                packet = new DatagramPacket(buffer, buffer.length, address, port);
-                this.socket.send(packet);
             } catch (Exception e) {
                 e.printStackTrace();
+            }
+            String data = new String(packet.getData(), 0, packet.getLength());
+            String reply;
+
+            if (data != null && !data.trim().isEmpty()) {
+                System.out.println("Server: " + data);
+                reply = this.processRequest(data);
+                DatagramSocket replySocket = new DatagramSocket();
+                DatagramPacket replyPacket = new DatagramPacket(reply.getBytes(), reply.length(), packet.getAddress(), packet.getPort());
+                replySocket.close();
             }
         }
     }
 
-    public String processRequest(byte[] buffer) {
-        String msg = new String(buffer, 0, buffer.length);
-        String words[] = msg.split(" ");
+    public String processRequest(String data) {
+        String[] args = data.split(" ");
+        String reply;
 
-        System.out.println("Server: " + words[0]);
-        for (int i = 1; i < words.length; i++) {
-            System.out.println(" " + words[i]);
+        switch(args[0]) {
+            case "REGISTER":
+                reply = this.register(args[1], args[2]);
+                break;
+            case "LOOKUP":
+                reply = this.lookup(args[1]);
+                break;
+            default:
+                reply = "ERROR";
+                System.out.println("ERROR");
+                break;
         }
-        System.out.println("");
 
-        String ret = "";
-
-        if (words[0].equals("REGISTER") && words.length == 3) ret = String.valueOf(this.register(words[1], words[2]));
-        else if (words[0].equals("LOOKUP") && words.length == 2) ret = words[1] + " " + this.lookup(words[1]);
-        return ret;
+        return reply;
     }
 
     private int register(String DNS, String IP) {
@@ -85,6 +92,6 @@ public class Server extends Thread {
         if (DNSTable.containsKey(DNS))
             return DNSTable.get(DNS);
         else
-            return "Not registered...";
+            return "NOT_FOUND";
     }
 }
