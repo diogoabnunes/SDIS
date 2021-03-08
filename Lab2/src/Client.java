@@ -1,111 +1,116 @@
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.MulticastSocket;
-import java.net.InetSocketAddress;
-import java.util.*;
+// java Client <mcast_addr> <mcast_port> <oper> <opnd> *
+
 import java.io.IOException;
+import java.net.*;
 
-public class Client{
-    MulticastSocket mcSocket;
+import static java.lang.Integer.parseInt;
+
+public class Client {
+    MulticastSocket mcastSocket;
     DatagramSocket socket;
-    InetAddress mcAddress;
-    int mcPort;
-    String operation;
-    String [] operands;
 
-    public Client(String mcAddress, int mcPort, String oper, String[] opnd) throws IOException{
-        this.mcSocket = new MulticastSocket(mcPort);
+    InetAddress mcastAddress;
+    int mcastPort;
+    String oper;
+    String dnsName;
+    String ipAddress;
+
+    public Client(String args[]) throws Exception {
+        this.mcastAddress = InetAddress.getByName(args[0]);
+        this.mcastPort = parseInt(args[1]);
+        this.oper = args[2];
+        this.dnsName = args[3];
+        if (this.oper.equals("REGISTER"))
+            this.ipAddress = args[4];
+
         this.socket = new DatagramSocket();
-        this.mcAddress = InetAddress.getByName(mcAddress);
-        mcSocket.joinGroup(this.mcAddress);
-
-        this.mcPort = mcPort;
-        this.operation = oper;
-        this.operands = opnd;
+        this.mcastSocket = new MulticastSocket(this.mcastPort);
+        this.mcastSocket.joinGroup(this.mcastAddress);
     }
 
-    public static void main(String args[]) throws IOException{
-        if (args.length<4){
-            System.out.println("Usage: java Client <mcast_addr> <mcast_port> <oper> <opnd> *");
+    public static void main(String[] args) throws Exception {
+        if (args.length != 4 && args.length != 5) {
+            System.out.println("Usage: java Client <mcast_addr> <mcast_port> REGISTER <DNS name> <IP address>");
+            System.out.println("Usage: java Client <mcast_addr> <mcast_port> LOOKUP <DNS name>");
+            System.exit(1);
+        }
+        else if ((args[2].equals("REGISTER") && args.length != 5) ||
+                (args[2].equals("LOOKUP") && args.length != 4) ||
+                (!args[2].equals("REGISTER") && !args[2].equals("LOOKUP"))) {
+            System.out.println("Usage: java Client <host> <port> REGISTER <DNS name> <IP address>");
+            System.out.println("Usage: java Client <host> <port> LOOKUP <DNS name>");
             System.exit(1);
         }
 
-        int mcPort = Integer.parseInt(args[1]);
-        String[] opnd = Arrays.copyOfRange(args, 3, args.length);
+        Client c = new Client(args);
+        InetSocketAddress srvc = c.awaitServiceLocation();
 
-        Client client = new Client(args[0],mcPort,args[2],opnd);
-
-        InetSocketAddress service = client.awaitServiceLocation();
-
-        String request = client.buildRequest();
-        client.sendRequest(request,service);
+        String request = c.buildRequest();
+        c.sendRequest(request, srvc);
     }
 
-    public String buildRequest(){
-        String request = new String(this.operation).toUpperCase();
-
-        switch(request){
+    public String buildRequest() {
+        String request = "";
+        switch (this.oper) {
             case "REGISTER":
-                request = request + " " + this.operands[0] + " " + this.operands[1];
+                request = this.oper + " " + this.dnsName + " " + this.ipAddress;
                 break;
             case "LOOKUP":
-                request = request + " " + this.operands[0];
+                request = this.oper + " " + this.dnsName;
                 break;
-            default:
-                System.out.println("Invalid Operation");
-                System.exit(3);
         }
-
         return request;
     }
 
-    public void sendRequest(String request, InetSocketAddress service) throws IOException{
-        byte[] buf = new byte[1024];
-        DatagramPacket reply = new DatagramPacket(buf,1024);
-        DatagramPacket packet = new DatagramPacket(request.getBytes(),request.length(),service.getAddress(),service.getPort());
+    public void sendRequest(String request, InetSocketAddress srvc) throws IOException {
+        DatagramPacket packet = new DatagramPacket(request.getBytes(), request.length(), srvc.getAddress(), srvc.getPort());
         this.socket.send(packet);
 
-        while(true){
-            try{
-                socket.receive(reply);
-            } catch(Exception e){
-                System.out.println(e);
+        byte[] buffer = new byte[256];
+        DatagramPacket reply = new DatagramPacket(buffer, buffer.length);
+
+        while (true) {
+            try {
+                this.socket.receive(reply);
+
+                String data = new String(reply.getData(), 0, reply.getLength());
+                if (data != null) {
+                    System.out.println("Client: " + request + " : " + data);
+                    break;
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
             }
 
-            String data = new String(reply.getData(),0,reply.getLength());
-            if(data != null && !data.trim().isEmpty()){
-                System.out.println("Client: " + request + " : " + data);
-                break;
-            }
+
         }
-
-        this.socket.close();
     }
 
-
-    public InetSocketAddress awaitServiceLocation() throws IOException{
-        byte[] buf = new byte[1024];
-        DatagramPacket packet = new DatagramPacket(buf, buf.length);
-
+    public InetSocketAddress awaitServiceLocation() throws UnknownHostException {
+        byte[] buffer = new byte[256];
+        DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
         String data;
+
         while(true){
             try{
-                this.mcSocket.receive(packet);
+                this.mcastSocket.receive(packet);
                 data = new String(packet.getData(),0,packet.getLength());
             }
             catch(Exception e){
                 throw new RuntimeException(e);
             }
 
-            if(data != null && !data.trim().isEmpty()){
+            if(data != null) {
                 String[] args = data.split(" ");
-                InetAddress serviceIP = InetAddress.getByName(args[0]);
-                int servicePort = Integer.parseInt(args[1]);
 
-                System.out.println("multicast: " + this.mcAddress.getHostAddress() + " " + this.mcPort + ": " + serviceIP.getHostAddress() + " " + servicePort);
+                InetAddress srvcAddress = InetAddress.getByName(args[0]);
+                int srvcPort = Integer.parseInt(args[1]);
 
-                InetSocketAddress service = new InetSocketAddress(serviceIP,servicePort);
+                System.out.println("multicast: " + this.mcastAddress.getHostAddress() + " " +
+                        this.mcastPort + ": " + srvcAddress.getHostAddress() + " " + srvcPort);
+
+                InetSocketAddress service = new InetSocketAddress(srvcAddress, srvcPort);
                 return service;
             }
         }

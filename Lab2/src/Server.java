@@ -1,7 +1,4 @@
 // java Server <srvc_port> <mcast_addr> <mcast_port>
-// Loop "forever" waiting for client requests, processing and replying to them.
-// Each time it processes a client request:
-// Server: <oper> <opnd>*
 
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -43,11 +40,12 @@ public class Server {
             try {
                 byte[] buffer = new byte[256];
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+
                 this.socket.receive(packet);
+
                 String data = new String(packet.getData(), 0, packet.getLength());
-
-
                 String reply;
+
                 if (data != null) {
                     reply = this.processRequest(data);
                     System.out.println(data + " *:: " + reply);
