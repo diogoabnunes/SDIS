@@ -23,15 +23,15 @@ public class Client {
 
     public static void main(String[] args) {
         if (args.length != 4 && args.length != 5) {
-            System.out.println("Usage: java Client <mcast_addr> <mcast_port> REGISTER <DNS name> <IP address>");
-            System.out.println("Usage: java Client <mcast_addr> <mcast_port> LOOKUP <DNS name>");
+            System.out.println("Usage: java Client <host_name> <remote_object_name> <oper> <opnd>*");
+            System.out.println("Usage: java Client <host_name> <remote_object_name> <oper> <opnd>*");
             System.exit(1);
         }
         else if ((args[2].equals("REGISTER") && args.length != 5) ||
                 (args[2].equals("LOOKUP") && args.length != 4) ||
                 (!args[2].equals("REGISTER") && !args[2].equals("LOOKUP"))) {
-            System.out.println("Usage: java Client <host> <port> REGISTER <DNS name> <IP address>");
-            System.out.println("Usage: java Client <host> <port> LOOKUP <DNS name>");
+            System.out.println("Usage: java Client <host_name> <remote_object_name> <oper> <opnd>*");
+            System.out.println("Usage: java Client <host_name> <remote_object_name> <oper> <opnd>*");
             System.exit(1);
         }
 
