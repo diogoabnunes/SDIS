@@ -54,10 +54,15 @@ public class Client {
     }
 
     public String buildRequest() {
-        return switch (this.oper) {
-            case "REGISTER" -> this.oper + " " + this.dnsName + " " + this.ipAddress;
-            case "LOOKUP" -> this.oper + " " + this.dnsName;
-            default -> "";
-        };
+        String request = "";
+        switch (this.oper) {
+            case "REGISTER":
+                request = this.oper + " " + this.dnsName + " " + this.ipAddress;
+                break;
+            case "LOOKUP":
+                request = this.oper + " " + this.dnsName;
+                break;
+        }
+        return request;
     }
 }
